@@ -80,28 +80,26 @@ bool DashboardView::HandleCommand(WPARAM wParam, LPARAM) {
 }
 
 void DashboardView::CreateControls(HWND parent, HINSTANCE instance) {
-    welcomeLabel_ = CreateLabel(parent, L"", 318, 58, 520, 42, fonts_.titleFont, instance);
-    roleLabel_ = CreateLabel(parent, L"", 318, 102, 520, 28, fonts_.subtitleFont, instance);
-    summaryLabel_ = CreateLabel(parent, L"", 318, 142, 520, 54, fonts_.bodyFont, instance);
-    quickTitleLabel_ = CreateLabel(parent, L"Today's focus", 318, 226, 220, 28, fonts_.subtitleFont, instance);
-    quickBodyLabel_ = CreateLabel(parent, L"", 318, 258, 470, 60, fonts_.bodyFont, instance);
+    welcomeLabel_ = CreateLabel(parent, L"", 318, 56, 520, 40, fonts_.titleFont, instance);
+    roleLabel_ = CreateLabel(parent, L"", 318, 98, 520, 26, fonts_.subtitleFont, instance);
+    summaryLabel_ = CreateLabel(parent, L"", 318, 136, 520, 60, fonts_.bodyFont, instance);
 
-    card1Label_ = CreateLabel(parent, L"", 318, 388, 152, 98, fonts_.smallFont, instance);
-    card2Label_ = CreateLabel(parent, L"", 493, 388, 152, 98, fonts_.smallFont, instance);
-    card3Label_ = CreateLabel(parent, L"", 668, 388, 152, 98, fonts_.smallFont, instance);
-    actionSectionLabel_ = CreateLabel(parent, L"", 318, 532, 300, 28, fonts_.subtitleFont, instance);
-    actionDescriptionLabel_ = CreateLabel(parent, L"", 318, 564, 500, 40, fonts_.bodyFont, instance);
-    field1Label_ = CreateLabel(parent, L"", 318, 614, 140, 22, fonts_.smallFont, instance);
-    field2Label_ = CreateLabel(parent, L"", 498, 614, 140, 22, fonts_.smallFont, instance);
-    field3Label_ = CreateLabel(parent, L"", 678, 614, 140, 22, fonts_.smallFont, instance);
-    field1Edit_ = CreateEdit(parent, ID_EDIT_DASH_FIELD1, 318, 640, 150, 32, fonts_.smallFont, instance);
-    field2Edit_ = CreateEdit(parent, ID_EDIT_DASH_FIELD2, 498, 640, 150, 32, fonts_.smallFont, instance);
-    field3Edit_ = CreateEdit(parent, ID_EDIT_DASH_FIELD3, 678, 640, 150, 32, fonts_.smallFont, instance);
-    actionButton_ = CreateButton(parent, L"", ID_BTN_DASHBOARD_ACTION, 318, 688, 210, 40, fonts_.bodyFont, instance);
-    actionStatusLabel_ = CreateLabel(parent, L"", 548, 694, 280, 24, fonts_.smallFont, instance);
+    card1Label_ = CreateLabel(parent, L"", 318, 270, 152, 98, fonts_.smallFont, instance);
+    card2Label_ = CreateLabel(parent, L"", 493, 270, 152, 98, fonts_.smallFont, instance);
+    card3Label_ = CreateLabel(parent, L"", 668, 270, 152, 98, fonts_.smallFont, instance);
+    actionSectionLabel_ = CreateLabel(parent, L"", 318, 420, 300, 28, fonts_.subtitleFont, instance);
+    actionDescriptionLabel_ = CreateLabel(parent, L"", 318, 454, 500, 40, fonts_.bodyFont, instance);
+    field1Label_ = CreateLabel(parent, L"", 318, 506, 140, 22, fonts_.smallFont, instance);
+    field2Label_ = CreateLabel(parent, L"", 498, 506, 140, 22, fonts_.smallFont, instance);
+    field3Label_ = CreateLabel(parent, L"", 678, 506, 140, 22, fonts_.smallFont, instance);
+    field1Edit_ = CreateEdit(parent, ID_EDIT_DASH_FIELD1, 318, 532, 150, 32, fonts_.smallFont, instance);
+    field2Edit_ = CreateEdit(parent, ID_EDIT_DASH_FIELD2, 498, 532, 150, 32, fonts_.smallFont, instance);
+    field3Edit_ = CreateEdit(parent, ID_EDIT_DASH_FIELD3, 678, 532, 150, 32, fonts_.smallFont, instance);
+    actionButton_ = CreateButton(parent, L"", ID_BTN_DASHBOARD_ACTION, 318, 588, 210, 40, fonts_.bodyFont, instance);
+    actionStatusLabel_ = CreateLabel(parent, L"", 548, 596, 280, 24, fonts_.smallFont, instance);
 
     controls_ = {
-        welcomeLabel_, roleLabel_, summaryLabel_, quickTitleLabel_, quickBodyLabel_,
+        welcomeLabel_, roleLabel_, summaryLabel_,
         card1Label_, card2Label_, card3Label_, actionSectionLabel_, actionDescriptionLabel_,
         field1Label_, field2Label_, field3Label_, field1Edit_, field2Edit_, field3Edit_,
         actionButton_, actionStatusLabel_
@@ -124,51 +122,43 @@ void DashboardView::UpdateContent() {
     SetWindowTextW(roleLabel_, (L"Signed in as " + ToWide(currentUser_.role)).c_str());
 
     std::wstring summary = L"You are now inside the HMS dashboard. This is the landing area for daily actions, shortcuts, and alerts.";
-    std::wstring focus = L"Use the left navigation to move between your core workflows, recent activity, and department tools.";
     Card card1{L"Queue", L"Review today's pending tasks and incoming work."};
     Card card2{L"Records", L"Open the latest patients, staff items, or orders."};
     Card card3{L"Actions", L"Jump into the most common role-specific actions."};
 
     if (currentUser_.role == "Patient") {
         summary = L"Your dashboard keeps appointments, bills, and recent hospital activity in one place.";
-        focus = L"Start with appointments, check unpaid bills, or review your recent activity.";
         card1 = {L"Appointments", L"Book or manage upcoming visits."};
         card2 = {L"Bills", L"Review outstanding balances and payments."};
         card3 = {L"History", L"See your latest visits and updates."};
     } else if (currentUser_.role == "Doctor") {
         summary = L"Your dashboard surfaces admissions, prescriptions, and patient records for today's shift.";
-        focus = L"Open your patient queue, issue prescriptions, or continue from unfinished clinical work.";
         card1 = {L"Admissions", L"Create or review patient admissions."};
         card2 = {L"Prescriptions", L"Manage medication and renewals."};
         card3 = {L"Records", L"Open and update medical files."};
     } else if (currentUser_.role == "Pharmacist") {
         summary = L"Your dashboard centralizes medication dispensing and stock visibility.";
-        focus = L"Check today's dispensing queue and confirm stock before completing requests.";
         card1 = {L"Dispensing", L"Process medication handoffs."};
         card2 = {L"Stock", L"Track medicine availability."};
         card3 = {L"Patients", L"Review current treatment requests."};
     } else if (currentUser_.role == "Secretary") {
         summary = L"Your dashboard combines patient billing, surgery planning, and front-desk actions.";
-        focus = L"Start with billing tasks or jump to surgery scheduling and patient coordination.";
         card1 = {L"Billing", L"Create and manage patient accounts."};
         card2 = {L"Surgery", L"Schedule rooms and teams."};
         card3 = {L"Patients", L"Find and assist patient records."};
     } else if (currentUser_.role == "Inventory Manager") {
         summary = L"Your dashboard focuses on stock levels, orders, and restock risk across hospital inventory.";
-        focus = L"Review low-stock items first, then place equipment and medicine orders.";
         card1 = {L"Inventory", L"Monitor current stock levels."};
         card2 = {L"Orders", L"Create and review supply orders."};
         card3 = {L"Alerts", L"See items that need replenishment."};
     } else if (currentUser_.role == "HR Manager") {
         summary = L"Your dashboard is the control center for staffing, shifts, and schedule conflicts.";
-        focus = L"Open staff scheduling, review conflicts, and manage today's workforce needs.";
         card1 = {L"Shifts", L"Create and revise schedules."};
         card2 = {L"Staff", L"Search personnel and assignments."};
         card3 = {L"Conflicts", L"Review rest-time and leave issues."};
     }
 
     SetWindowTextW(summaryLabel_, summary.c_str());
-    SetWindowTextW(quickBodyLabel_, focus.c_str());
     UpdateCardLabel(card1Label_, card1);
     UpdateCardLabel(card2Label_, card2);
     UpdateCardLabel(card3Label_, card3);
@@ -315,7 +305,7 @@ bool DashboardView::SaveAction() {
 }
 
 void DashboardView::Paint(HDC hdc) const {
-    RECT headerCard = {290, 32, 846, 344};
+    RECT headerCard = {290, 32, 846, 226};
     HBRUSH cardBrush = CreateSolidBrush(Theme::kCardBackground);
     HPEN cardPen = CreatePen(PS_SOLID, 1, Theme::kBorder);
     HGDIOBJ oldBrush = SelectObject(hdc, cardBrush);
@@ -327,9 +317,9 @@ void DashboardView::Paint(HDC hdc) const {
     DeleteObject(cardPen);
 
     const RECT cards[] = {
-        {318, 370, 478, 492},
-        {493, 370, 653, 492},
-        {668, 370, 828, 492}
+        {318, 252, 478, 374},
+        {493, 252, 653, 374},
+        {668, 252, 828, 374}
     };
 
     for (const RECT& card : cards) {
@@ -344,7 +334,7 @@ void DashboardView::Paint(HDC hdc) const {
         DeleteObject(tilePen);
     }
 
-    RECT actionCard = {290, 514, 846, 742};
+    RECT actionCard = {290, 402, 846, 646};
     HBRUSH actionBrush = CreateSolidBrush(Theme::kCardBackground);
     HPEN actionPen = CreatePen(PS_SOLID, 1, Theme::kBorder);
     HGDIOBJ oldBrush2 = SelectObject(hdc, actionBrush);

@@ -61,8 +61,6 @@ private:
     HWND welcomeLabel_ = nullptr;
     HWND roleLabel_ = nullptr;
     HWND summaryLabel_ = nullptr;
-    HWND quickTitleLabel_ = nullptr;
-    HWND quickBodyLabel_ = nullptr;
     HWND card1Label_ = nullptr;
     HWND card2Label_ = nullptr;
     HWND card3Label_ = nullptr;
