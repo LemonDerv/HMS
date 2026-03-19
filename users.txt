@@ -1,3 +1,6 @@
 George|George|123456|Patient
 men1|men1|123456|Doctor
 men2|men2|123456|Pharmacist
+men3|men3|123456|Secretary
+men4|men4|123456|Inventory Manager
+men5|men5|123456|HR Manager

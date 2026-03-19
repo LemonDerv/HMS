@@ -5,14 +5,40 @@
 #include "Win32Util.h"
 
 #include <algorithm>
+#include <fstream>
+#include <sstream>
 
 namespace {
+constexpr int ID_BTN_DASHBOARD_ACTION = 2001;
+constexpr int ID_EDIT_DASH_FIELD1 = 2101;
+constexpr int ID_EDIT_DASH_FIELD2 = 2102;
+constexpr int ID_EDIT_DASH_FIELD3 = 2103;
+
 HWND CreateLabel(HWND parent, const wchar_t* text, int x, int y, int w, int h, HFONT font, HINSTANCE instance) {
     HWND label = CreateWindowExW(
         0, L"STATIC", text, WS_CHILD | WS_VISIBLE,
         x, y, w, h, parent, nullptr, instance, nullptr);
     SetControlFont(label, font);
     return label;
+}
+
+HWND CreateEdit(HWND parent, int id, int x, int y, int w, int h, HFONT font, HINSTANCE instance) {
+    HWND edit = CreateWindowExW(
+        WS_EX_CLIENTEDGE,
+        L"EDIT",
+        L"",
+        WS_CHILD | WS_VISIBLE | WS_TABSTOP | ES_AUTOHSCROLL,
+        x, y, w, h, parent, reinterpret_cast<HMENU>(static_cast<INT_PTR>(id)), instance, nullptr);
+    SetControlFont(edit, font);
+    return edit;
+}
+
+HWND CreateButton(HWND parent, const wchar_t* text, int id, int x, int y, int w, int h, HFONT font, HINSTANCE instance) {
+    HWND button = CreateWindowExW(
+        0, L"BUTTON", text, WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_OWNERDRAW,
+        x, y, w, h, parent, reinterpret_cast<HMENU>(static_cast<INT_PTR>(id)), instance, nullptr);
+    SetControlFont(button, font);
+    return button;
 }
 }
 
@@ -32,6 +58,9 @@ void DashboardView::Initialize(HWND parent, const DashboardFonts& fonts, HINSTAN
 void DashboardView::SetUser(const User& user) {
     currentUser_ = user;
     UpdateContent();
+    UpdateActionConfig();
+    ClearActionInputs();
+    SetActionStatus(L"");
 }
 
 void DashboardView::Show(bool visible) {
@@ -40,6 +69,14 @@ void DashboardView::Show(bool visible) {
 
 bool DashboardView::IsOwnedControl(HWND hwnd) const {
     return std::find(controls_.begin(), controls_.end(), hwnd) != controls_.end();
+}
+
+bool DashboardView::HandleCommand(WPARAM wParam, LPARAM) {
+    if (LOWORD(wParam) == ID_BTN_DASHBOARD_ACTION) {
+        return SaveAction();
+    }
+
+    return false;
 }
 
 void DashboardView::CreateControls(HWND parent, HINSTANCE instance) {
@@ -52,8 +89,23 @@ void DashboardView::CreateControls(HWND parent, HINSTANCE instance) {
     card1Label_ = CreateLabel(parent, L"", 318, 388, 152, 98, fonts_.smallFont, instance);
     card2Label_ = CreateLabel(parent, L"", 493, 388, 152, 98, fonts_.smallFont, instance);
     card3Label_ = CreateLabel(parent, L"", 668, 388, 152, 98, fonts_.smallFont, instance);
+    actionSectionLabel_ = CreateLabel(parent, L"", 318, 532, 300, 28, fonts_.subtitleFont, instance);
+    actionDescriptionLabel_ = CreateLabel(parent, L"", 318, 564, 500, 40, fonts_.bodyFont, instance);
+    field1Label_ = CreateLabel(parent, L"", 318, 614, 140, 22, fonts_.smallFont, instance);
+    field2Label_ = CreateLabel(parent, L"", 498, 614, 140, 22, fonts_.smallFont, instance);
+    field3Label_ = CreateLabel(parent, L"", 678, 614, 140, 22, fonts_.smallFont, instance);
+    field1Edit_ = CreateEdit(parent, ID_EDIT_DASH_FIELD1, 318, 640, 150, 32, fonts_.smallFont, instance);
+    field2Edit_ = CreateEdit(parent, ID_EDIT_DASH_FIELD2, 498, 640, 150, 32, fonts_.smallFont, instance);
+    field3Edit_ = CreateEdit(parent, ID_EDIT_DASH_FIELD3, 678, 640, 150, 32, fonts_.smallFont, instance);
+    actionButton_ = CreateButton(parent, L"", ID_BTN_DASHBOARD_ACTION, 318, 688, 210, 40, fonts_.bodyFont, instance);
+    actionStatusLabel_ = CreateLabel(parent, L"", 548, 694, 280, 24, fonts_.smallFont, instance);
 
-    controls_ = {welcomeLabel_, roleLabel_, summaryLabel_, quickTitleLabel_, quickBodyLabel_, card1Label_, card2Label_, card3Label_};
+    controls_ = {
+        welcomeLabel_, roleLabel_, summaryLabel_, quickTitleLabel_, quickBodyLabel_,
+        card1Label_, card2Label_, card3Label_, actionSectionLabel_, actionDescriptionLabel_,
+        field1Label_, field2Label_, field3Label_, field1Edit_, field2Edit_, field3Edit_,
+        actionButton_, actionStatusLabel_
+    };
 }
 
 void DashboardView::ShowControls(bool visible) const {
@@ -122,6 +174,146 @@ void DashboardView::UpdateContent() {
     UpdateCardLabel(card3Label_, card3);
 }
 
+void DashboardView::UpdateActionConfig() {
+    actionConfig_ = GetActionConfigForRole();
+    SetWindowTextW(actionSectionLabel_, actionConfig_.sectionTitle.c_str());
+    SetWindowTextW(actionDescriptionLabel_, actionConfig_.sectionDescription.c_str());
+    SetWindowTextW(field1Label_, actionConfig_.field1Label.c_str());
+    SetWindowTextW(field2Label_, actionConfig_.field2Label.c_str());
+    SetWindowTextW(field3Label_, actionConfig_.field3Label.c_str());
+    SetWindowTextW(actionButton_, actionConfig_.buttonLabel.c_str());
+}
+
+void DashboardView::ClearActionInputs() {
+    SetWindowTextW(field1Edit_, L"");
+    SetWindowTextW(field2Edit_, L"");
+    SetWindowTextW(field3Edit_, L"");
+}
+
+void DashboardView::SetActionStatus(const std::wstring& text) {
+    SetWindowTextW(actionStatusLabel_, text.c_str());
+    InvalidateRect(actionStatusLabel_, nullptr, TRUE);
+    UpdateWindow(actionStatusLabel_);
+}
+
+DashboardView::ActionConfig DashboardView::GetActionConfigForRole() const {
+    if (currentUser_.role == "Patient") {
+        return {
+            L"Book an appointment",
+            L"Create a patient appointment request and save it locally.",
+            L"Date",
+            L"Specialty",
+            L"Doctor",
+            L"Save Appointment",
+            L"Appointment request saved.",
+            "patient_appointments.txt"
+        };
+    }
+    if (currentUser_.role == "Doctor") {
+        return {
+            L"Issue a prescription",
+            L"Capture a medication order for a patient.",
+            L"Patient",
+            L"Medicine",
+            L"Dosage",
+            L"Save Prescription",
+            L"Prescription saved.",
+            "doctor_prescriptions.txt"
+        };
+    }
+    if (currentUser_.role == "Pharmacist") {
+        return {
+            L"Record medicine dispensing",
+            L"Track a medication handoff for the pharmacy queue.",
+            L"Patient",
+            L"Medicine",
+            L"Quantity",
+            L"Save Dispensing",
+            L"Dispensing record saved.",
+            "pharmacist_dispensing.txt"
+        };
+    }
+    if (currentUser_.role == "Secretary") {
+        return {
+            L"Issue a patient bill",
+            L"Create and store a billing record for a patient visit.",
+            L"Patient",
+            L"Service",
+            L"Amount",
+            L"Save Bill",
+            L"Billing record saved.",
+            "secretary_billing.txt"
+        };
+    }
+    if (currentUser_.role == "Inventory Manager") {
+        return {
+            L"Place a restock order",
+            L"Create a supply request for medicine or equipment.",
+            L"Item",
+            L"Quantity",
+            L"Supplier",
+            L"Save Order",
+            L"Restock order saved.",
+            "inventory_orders.txt"
+        };
+    }
+    if (currentUser_.role == "HR Manager") {
+        return {
+            L"Schedule a shift",
+            L"Create a staffing assignment and store it locally.",
+            L"Employee",
+            L"Shift date",
+            L"Department",
+            L"Save Shift",
+            L"Shift saved.",
+            "hr_shifts.txt"
+        };
+    }
+
+    return {
+        L"Create a dashboard action",
+        L"Save a generic record for this role.",
+        L"Field 1",
+        L"Field 2",
+        L"Field 3",
+        L"Save",
+        L"Record saved.",
+        "dashboard_actions.txt"
+    };
+}
+
+std::string DashboardView::BuildRecordLine(const std::wstring& field1, const std::wstring& field2, const std::wstring& field3) const {
+    std::ostringstream output;
+    output << currentUser_.role << '|'
+           << currentUser_.username << '|'
+           << ToUtf8(field1) << '|'
+           << ToUtf8(field2) << '|'
+           << ToUtf8(field3);
+    return output.str();
+}
+
+bool DashboardView::SaveAction() {
+    const std::wstring field1 = GetWindowTextString(field1Edit_);
+    const std::wstring field2 = GetWindowTextString(field2Edit_);
+    const std::wstring field3 = GetWindowTextString(field3Edit_);
+
+    if (field1.empty() || field2.empty() || field3.empty()) {
+        SetActionStatus(L"Please fill in every field.");
+        return true;
+    }
+
+    std::ofstream output(actionConfig_.fileName, std::ios::app);
+    if (!output.is_open()) {
+        SetActionStatus(L"Unable to save this record.");
+        return true;
+    }
+
+    output << BuildRecordLine(field1, field2, field3) << '\n';
+    ClearActionInputs();
+    SetActionStatus(actionConfig_.successMessage);
+    return true;
+}
+
 void DashboardView::Paint(HDC hdc) const {
     RECT headerCard = {290, 32, 846, 344};
     HBRUSH cardBrush = CreateSolidBrush(Theme::kCardBackground);
@@ -151,4 +343,15 @@ void DashboardView::Paint(HDC hdc) const {
         DeleteObject(tileBrush);
         DeleteObject(tilePen);
     }
+
+    RECT actionCard = {290, 514, 846, 742};
+    HBRUSH actionBrush = CreateSolidBrush(Theme::kCardBackground);
+    HPEN actionPen = CreatePen(PS_SOLID, 1, Theme::kBorder);
+    HGDIOBJ oldBrush2 = SelectObject(hdc, actionBrush);
+    HGDIOBJ oldPen2 = SelectObject(hdc, actionPen);
+    RoundRect(hdc, actionCard.left, actionCard.top, actionCard.right, actionCard.bottom, 24, 24);
+    SelectObject(hdc, oldBrush2);
+    SelectObject(hdc, oldPen2);
+    DeleteObject(actionBrush);
+    DeleteObject(actionPen);
 }

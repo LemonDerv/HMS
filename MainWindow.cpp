@@ -50,7 +50,7 @@ bool MainWindow::Create() {
         CW_USEDEFAULT,
         CW_USEDEFAULT,
         920,
-        700,
+        860,
         nullptr,
         nullptr,
         instance_,
@@ -102,6 +102,10 @@ LRESULT MainWindow::HandleMessage(UINT message, WPARAM wParam, LPARAM lParam) {
             return 0;
 
         case WM_COMMAND:
+            if (currentPage_ == Page::Dashboard && dashboard_.HandleCommand(wParam, lParam)) {
+                return 0;
+            }
+
             switch (LOWORD(wParam)) {
                 case ID_BTN_TAB_LOGIN:
                     SetAuthMode(AuthMode::Login);
@@ -136,9 +140,11 @@ LRESULT MainWindow::HandleMessage(UINT message, WPARAM wParam, LPARAM lParam) {
             }
 
             if (currentPage_ == Page::Dashboard && dashboard_.IsOwnedControl(control)) {
-                SetBkMode(hdc, TRANSPARENT);
+                SetBkMode(hdc, OPAQUE);
+                SetBkColor(hdc, Theme::kCardBackground);
                 SetTextColor(hdc, Theme::kBodyText);
-                return reinterpret_cast<INT_PTR>(GetStockObject(NULL_BRUSH));
+                static HBRUSH dashboardBrush = CreateSolidBrush(Theme::kCardBackground);
+                return reinterpret_cast<INT_PTR>(dashboardBrush);
             }
 
             SetBkMode(hdc, OPAQUE);
@@ -318,7 +324,7 @@ void MainWindow::CreateAuthControls() {
 void MainWindow::CreateDashboard() {
     btnLogout_ = CreateWindowExW(
         0, L"BUTTON", L"Logout", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_OWNERDRAW,
-        44, 610, 178, 46, hwnd_, reinterpret_cast<HMENU>(static_cast<INT_PTR>(ID_BTN_LOGOUT)), instance_, nullptr);
+        44, 760, 178, 46, hwnd_, reinterpret_cast<HMENU>(static_cast<INT_PTR>(ID_BTN_LOGOUT)), instance_, nullptr);
     SetControlFont(btnLogout_, fonts_.button);
 
     DashboardFonts dashboardFonts{fonts_.title, fonts_.subtitle, fonts_.body, fonts_.small};
@@ -459,7 +465,7 @@ void MainWindow::PaintWindow(HDC hdc) const {
 }
 
 void MainWindow::PaintSidebar(HDC hdc) const {
-    RECT sidebar = {20, 20, 266, 660};
+    RECT sidebar = {20, 20, 266, 820};
     DrawVerticalGradient(hdc, sidebar, Theme::kSidebarStart, Theme::kSidebarEnd);
 
     HBRUSH accentBrush = CreateSolidBrush(RGB(139, 207, 255));
@@ -505,7 +511,7 @@ void MainWindow::DrawButton(LPDRAWITEMSTRUCT drawItem) const {
     COLORREF border = Theme::kMutedButtonBorder;
     COLORREF text = RGB(39, 62, 92);
 
-    if (controlId == ID_BTN_LOGIN || controlId == ID_BTN_REGISTER || controlId == ID_BTN_LOGOUT) {
+    if (controlId == ID_BTN_LOGIN || controlId == ID_BTN_REGISTER || controlId == ID_BTN_LOGOUT || controlId == 2001) {
         fill = Theme::kPrimary;
         border = Theme::kPrimary;
         text = RGB(255, 255, 255);
