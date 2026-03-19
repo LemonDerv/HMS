@@ -51,8 +51,8 @@ bool MainWindow::Create() {
         WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_MINIMIZEBOX,
         CW_USEDEFAULT,
         CW_USEDEFAULT,
-        920,
-        860,
+        1180,
+        980,
         nullptr,
         nullptr,
         instance_,
@@ -326,7 +326,7 @@ void MainWindow::CreateAuthControls() {
 void MainWindow::CreateDashboard() {
     btnLogout_ = CreateWindowExW(
         0, L"BUTTON", L"Logout", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_OWNERDRAW,
-        44, 760, 178, 46, hwnd_, reinterpret_cast<HMENU>(static_cast<INT_PTR>(ID_BTN_LOGOUT)), instance_, nullptr);
+        32, 878, 182, 46, hwnd_, reinterpret_cast<HMENU>(static_cast<INT_PTR>(ID_BTN_LOGOUT)), instance_, nullptr);
     SetControlFont(btnLogout_, fonts_.button);
 
     DashboardFonts dashboardFonts{fonts_.title, fonts_.subtitle, fonts_.body, fonts_.small};
@@ -471,9 +471,8 @@ void MainWindow::PaintWindow(HDC hdc) const {
     FillRect(hdc, &client, background);
     DeleteObject(background);
 
-    PaintSidebar(hdc);
-
     if (currentPage_ == Page::Auth) {
+        PaintSidebar(hdc);
         PaintAuthPage(hdc);
     } else {
         PaintDashboardPage(hdc);
@@ -481,7 +480,7 @@ void MainWindow::PaintWindow(HDC hdc) const {
 }
 
 void MainWindow::PaintSidebar(HDC hdc) const {
-    RECT sidebar = {20, 20, 266, 820};
+    RECT sidebar = {20, 20, 266, 940};
     DrawVerticalGradient(hdc, sidebar, Theme::kSidebarStart, Theme::kSidebarEnd);
 
     HBRUSH accentBrush = CreateSolidBrush(RGB(139, 207, 255));
@@ -531,6 +530,10 @@ void MainWindow::DrawButton(LPDRAWITEMSTRUCT drawItem) const {
         fill = Theme::kPrimary;
         border = Theme::kPrimary;
         text = RGB(255, 255, 255);
+    } else if (controlId == 2005 || controlId == 2006) {
+        fill = Theme::kMutedButton;
+        border = Theme::kMutedButtonBorder;
+        text = Theme::kBodyText;
     } else if (dashboard_.IsDashboardButtonId(controlId)) {
         fill = RGB(250, 252, 255);
         border = Theme::kBorder;
@@ -572,7 +575,7 @@ void MainWindow::DrawButton(LPDRAWITEMSTRUCT drawItem) const {
     wchar_t buttonText[128] = {};
     GetWindowTextW(drawItem->hwndItem, buttonText, 128);
     UINT format = DT_CENTER | DT_VCENTER | DT_SINGLELINE;
-    if (dashboard_.IsDashboardButtonId(controlId) && controlId != 2001) {
+    if (dashboard_.IsDashboardButtonId(controlId) && controlId != 2001 && controlId != 2005 && controlId != 2006) {
         RECT textRect = rect;
         textRect.left += 12;
         textRect.top += 10;

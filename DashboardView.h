@@ -77,10 +77,36 @@ private:
         std::wstring field1Label;
         std::wstring field2Label;
         std::wstring field3Label;
+        std::wstring field4Label;
+        std::wstring field5Label;
         std::wstring buttonLabel;
+        std::wstring secondaryButtonLabel;
+        std::wstring tertiaryButtonLabel;
+        std::wstring listTitle;
         std::wstring successMessage;
         std::string storageKey;
         bool showForm = true;
+        bool showList = false;
+        bool showSecondaryButton = false;
+        bool showTertiaryButton = false;
+    };
+
+    enum class ListMode {
+        None,
+        AppointmentSlots,
+        PatientAppointments,
+        PatientBills,
+        PatientSearch,
+        BillingPreview,
+        PaymentReceipt,
+        PrescriptionAlternatives,
+        MedicalRecordHistory,
+        PharmacistPrescriptions,
+        InventoryCatalog,
+        InventoryAlternatives,
+        InventoryOrderPreview,
+        SurgeryPlan,
+        HrSwapCandidates
     };
 
     void CreateControls(HWND parent, HINSTANCE instance);
@@ -101,9 +127,50 @@ private:
     void SetHrSection(HrSection section);
     void UpdatePatientHistory();
     std::vector<std::wstring> LoadRecentPatientHistory() const;
+    bool IsSpecialWorkflowSection() const;
+    void UpdateWorkflowButtons();
+    void PopulateList(const std::wstring& title, const std::vector<WorkflowItem>& items);
+    void ClearList();
+    std::string GetSelectedPayload() const;
+    int GetSelectedListIndex() const;
+    void UpdateRecordEditState();
+    void ReleaseMedicalRecordLockIfHeld();
+    bool HandlePrimaryWorkflowAction();
+    bool HandleSecondaryWorkflowAction();
+    bool HandleTertiaryWorkflowAction();
+    bool HandlePatientAppointmentPrimary();
+    bool HandlePatientAppointmentSecondary();
+    bool HandlePatientAppointmentTertiary();
+    bool HandlePatientBillPrimary();
+    bool HandlePatientBillSecondary();
+    bool HandlePatientBillTertiary();
+    bool HandleDoctorAdmissionPrimary();
+    bool HandleDoctorAdmissionSecondary();
+    bool HandleDoctorAdmissionTertiary();
+    bool HandleDoctorPrescriptionPrimary();
+    bool HandleDoctorPrescriptionSecondary();
+    bool HandleDoctorPrescriptionTertiary();
+    bool HandleDoctorRecordPrimary();
+    bool HandleDoctorRecordSecondary();
+    bool HandleDoctorRecordTertiary();
+    bool HandlePharmacistPatientPrimary();
+    bool HandlePharmacistPatientSecondary();
+    bool HandlePharmacistPatientTertiary();
+    bool HandleSecretaryBillingPrimary();
+    bool HandleSecretaryBillingSecondary();
+    bool HandleSecretaryBillingTertiary();
+    bool HandleSecretarySurgeryPrimary();
+    bool HandleSecretarySurgerySecondary();
+    bool HandleSecretarySurgeryTertiary();
+    bool HandleInventoryOrderPrimary();
+    bool HandleInventoryOrderSecondary();
+    bool HandleInventoryOrderTertiary();
+    bool HandleHrShiftPrimary();
+    bool HandleHrShiftSecondary();
+    bool HandleHrShiftTertiary();
 
     HWND parent_ = nullptr;
-    DashboardFonts fonts_{};
+    DashboardFonts fonts_{};    
     User currentUser_{};
     bool initialized_ = false;
     PatientSection patientSection_ = PatientSection::Appointments;
@@ -124,13 +191,38 @@ private:
     HWND field1Label_ = nullptr;
     HWND field2Label_ = nullptr;
     HWND field3Label_ = nullptr;
+    HWND field4Label_ = nullptr;
+    HWND field5Label_ = nullptr;
     HWND field1Edit_ = nullptr;
     HWND field2Edit_ = nullptr;
     HWND field3Edit_ = nullptr;
+    HWND field4Edit_ = nullptr;
+    HWND field5Edit_ = nullptr;
     HWND actionButton_ = nullptr;
+    HWND secondaryActionButton_ = nullptr;
+    HWND tertiaryActionButton_ = nullptr;
     HWND actionStatusLabel_ = nullptr;
     HWND historyLabel_ = nullptr;
+    HWND listTitleLabel_ = nullptr;
+    HWND listBox_ = nullptr;
     std::vector<HWND> controls_;
     ActionConfig actionConfig_{};
     CaseRepository repository_{kDatabasePath};
+    std::vector<WorkflowItem> listItems_;
+    ListMode listMode_ = ListMode::None;
+    int selectedPatientUserId_ = 0;
+    int pendingRescheduleAppointmentId_ = 0;
+    PaymentReceipt activeReceipt_{};
+    std::string activeReceiptNumber_;
+    bool medicalRecordReadOnly_ = false;
+    bool medicalRecordLockHeld_ = false;
+    PrescriptionWarning activePrescriptionWarning_{};
+    std::string pendingInventoryAlternativePayload_;
+    SurgeryPlan pendingSurgeryPlan_{};
+    bool pendingHrOverride_ = false;
+    std::string pendingHrEmployee_;
+    std::string pendingHrDate_;
+    std::string pendingHrDepartment_;
+    std::string pendingHrStart_;
+    std::string pendingHrEnd_;
 };

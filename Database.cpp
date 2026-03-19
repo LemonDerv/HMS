@@ -48,6 +48,7 @@ CREATE TABLE IF NOT EXISTS appointments (
     appointment_date TEXT NOT NULL,
     appointment_time TEXT,
     status TEXT NOT NULL DEFAULT 'scheduled',
+    reservation_expires_at TEXT,
     notes TEXT,
     created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY(patient_user_id) REFERENCES users(id) ON DELETE SET NULL,
@@ -77,6 +78,7 @@ CREATE TABLE IF NOT EXISTS payments (
     amount REAL NOT NULL,
     status TEXT NOT NULL DEFAULT 'completed',
     receipt_number TEXT,
+    authorization_reference TEXT,
     created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY(bill_id) REFERENCES bills(id) ON DELETE SET NULL,
     FOREIGN KEY(patient_user_id) REFERENCES users(id) ON DELETE SET NULL
@@ -136,6 +138,16 @@ CREATE TABLE IF NOT EXISTS medical_records (
     FOREIGN KEY(doctor_user_id) REFERENCES users(id) ON DELETE SET NULL
 );
 
+CREATE TABLE IF NOT EXISTS medical_record_locks (
+    patient_user_id INTEGER PRIMARY KEY,
+    locked_by_user_id INTEGER NOT NULL,
+    locked_by_name TEXT NOT NULL,
+    expires_at TEXT NOT NULL,
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY(patient_user_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY(locked_by_user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
 CREATE TABLE IF NOT EXISTS medication_dispensing (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     patient_user_id INTEGER,
@@ -178,6 +190,8 @@ CREATE TABLE IF NOT EXISTS inventory_orders (
     item_name TEXT NOT NULL,
     quantity INTEGER NOT NULL,
     supplier TEXT,
+    alternative_item_name TEXT,
+    justification TEXT,
     status TEXT NOT NULL DEFAULT 'ordered',
     created_by_user_id INTEGER,
     created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -202,12 +216,28 @@ CREATE TABLE IF NOT EXISTS surgeries (
     patient_user_id INTEGER,
     patient_name TEXT NOT NULL,
     surgery_date TEXT NOT NULL,
+    surgery_time TEXT,
+    duration_minutes INTEGER NOT NULL DEFAULT 120,
+    doctor_category TEXT,
+    surgeon_user_id INTEGER,
+    surgeon_name TEXT,
+    nurse_name TEXT,
     operating_room TEXT,
     status TEXT NOT NULL DEFAULT 'scheduled',
+    rejection_reason TEXT,
     created_by_user_id INTEGER,
     created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY(patient_user_id) REFERENCES users(id) ON DELETE SET NULL,
+    FOREIGN KEY(surgeon_user_id) REFERENCES users(id) ON DELETE SET NULL,
     FOREIGN KEY(created_by_user_id) REFERENCES users(id) ON DELETE SET NULL
+);
+
+CREATE TABLE IF NOT EXISTS operating_rooms (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    room_name TEXT NOT NULL UNIQUE,
+    status TEXT NOT NULL DEFAULT 'available',
+    reserved_for_surgery_id INTEGER,
+    updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE TABLE IF NOT EXISTS patient_support_tasks (
@@ -226,7 +256,10 @@ CREATE TABLE IF NOT EXISTS hr_shifts (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     employee_name TEXT NOT NULL,
     shift_date TEXT NOT NULL,
+    start_time TEXT,
+    end_time TEXT,
     department TEXT NOT NULL,
+    override_reason TEXT,
     created_by_user_id INTEGER,
     created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY(created_by_user_id) REFERENCES users(id) ON DELETE SET NULL
@@ -252,15 +285,72 @@ CREATE TABLE IF NOT EXISTS hr_conflicts (
     FOREIGN KEY(created_by_user_id) REFERENCES users(id) ON DELETE SET NULL
 );
 
+CREATE TABLE IF NOT EXISTS hr_shift_swaps (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    from_shift_id INTEGER,
+    to_shift_id INTEGER,
+    from_employee_name TEXT NOT NULL,
+    to_employee_name TEXT NOT NULL,
+    shift_date TEXT NOT NULL,
+    justification TEXT,
+    created_by_user_id INTEGER,
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY(from_shift_id) REFERENCES hr_shifts(id) ON DELETE SET NULL,
+    FOREIGN KEY(to_shift_id) REFERENCES hr_shifts(id) ON DELETE SET NULL,
+    FOREIGN KEY(created_by_user_id) REFERENCES users(id) ON DELETE SET NULL
+);
+
 CREATE INDEX IF NOT EXISTS idx_users_username ON users(username);
 CREATE INDEX IF NOT EXISTS idx_appointments_patient_user ON appointments(patient_user_id);
+CREATE INDEX IF NOT EXISTS idx_appointments_doctor_slot ON appointments(doctor_user_id, appointment_date, appointment_time);
 CREATE INDEX IF NOT EXISTS idx_bills_patient_user ON bills(patient_user_id);
 CREATE INDEX IF NOT EXISTS idx_payments_bill_id ON payments(bill_id);
 CREATE INDEX IF NOT EXISTS idx_prescriptions_patient_user ON prescriptions(patient_user_id);
 CREATE INDEX IF NOT EXISTS idx_admissions_patient_user ON admissions(patient_user_id);
 CREATE INDEX IF NOT EXISTS idx_inventory_orders_item_name ON inventory_orders(item_name);
 CREATE INDEX IF NOT EXISTS idx_pharmacy_reviews_patient_user ON pharmacy_patient_reviews(patient_user_id);
+CREATE INDEX IF NOT EXISTS idx_medical_record_locks_patient ON medical_record_locks(patient_user_id);
+CREATE INDEX IF NOT EXISTS idx_surgeries_room_time ON surgeries(operating_room, surgery_date, surgery_time);
+CREATE INDEX IF NOT EXISTS idx_hr_shift_swaps_date ON hr_shift_swaps(shift_date);
 )SQL";
+
+bool TableHasColumn(sqlite3* db, const char* tableName, const char* columnName) {
+    const std::string pragma = std::string("PRAGMA table_info(") + tableName + ");";
+    sqlite3_stmt* statement = nullptr;
+    if (sqlite3_prepare_v2(db, pragma.c_str(), -1, &statement, nullptr) != SQLITE_OK) {
+        return false;
+    }
+
+    bool found = false;
+    while (sqlite3_step(statement) == SQLITE_ROW) {
+        const char* existingName = reinterpret_cast<const char*>(sqlite3_column_text(statement, 1));
+        if (existingName != nullptr && std::string(existingName) == columnName) {
+            found = true;
+            break;
+        }
+    }
+
+    sqlite3_finalize(statement);
+    return found;
+}
+
+bool EnsureColumn(sqlite3* db, const char* tableName, const char* columnName, const char* definition, std::string& errorMessage) {
+    if (TableHasColumn(db, tableName, columnName)) {
+        return true;
+    }
+
+    const std::string sql =
+        std::string("ALTER TABLE ") + tableName + " ADD COLUMN " + columnName + " " + definition + ";";
+    char* sqliteError = nullptr;
+    const int execResult = sqlite3_exec(db, sql.c_str(), nullptr, nullptr, &sqliteError);
+    if (execResult != SQLITE_OK) {
+        errorMessage = sqliteError != nullptr ? sqliteError : sqlite3_errmsg(db);
+        sqlite3_free(sqliteError);
+        return false;
+    }
+
+    return true;
+}
 }
 
 Database::Database(std::string path) : path_(std::move(path)) {}
@@ -329,7 +419,24 @@ bool Database::Prepare(const std::string& sql, sqlite3_stmt** statement, std::st
 }
 
 bool Database::InitializeSchema(std::string& errorMessage) const {
-    return Execute(kSchemaSql, errorMessage);
+    if (!Execute(kSchemaSql, errorMessage)) {
+        return false;
+    }
+
+    return EnsureColumn(db_, "hr_shifts", "start_time", "TEXT", errorMessage) &&
+           EnsureColumn(db_, "hr_shifts", "end_time", "TEXT", errorMessage) &&
+           EnsureColumn(db_, "hr_shifts", "override_reason", "TEXT", errorMessage) &&
+           EnsureColumn(db_, "appointments", "reservation_expires_at", "TEXT", errorMessage) &&
+           EnsureColumn(db_, "payments", "authorization_reference", "TEXT", errorMessage) &&
+           EnsureColumn(db_, "inventory_orders", "alternative_item_name", "TEXT", errorMessage) &&
+           EnsureColumn(db_, "inventory_orders", "justification", "TEXT", errorMessage) &&
+           EnsureColumn(db_, "surgeries", "surgery_time", "TEXT", errorMessage) &&
+           EnsureColumn(db_, "surgeries", "duration_minutes", "INTEGER NOT NULL DEFAULT 120", errorMessage) &&
+           EnsureColumn(db_, "surgeries", "doctor_category", "TEXT", errorMessage) &&
+           EnsureColumn(db_, "surgeries", "surgeon_user_id", "INTEGER", errorMessage) &&
+           EnsureColumn(db_, "surgeries", "surgeon_name", "TEXT", errorMessage) &&
+           EnsureColumn(db_, "surgeries", "nurse_name", "TEXT", errorMessage) &&
+           EnsureColumn(db_, "surgeries", "rejection_reason", "TEXT", errorMessage);
 }
 
 sqlite3* Database::Handle() const {
