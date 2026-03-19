@@ -251,6 +251,8 @@ bool isHeroLabel(const AppState* state, HWND hwnd) {
 
 void setStatusMessage(AppState* state, const std::wstring& text) {
     SetWindowTextW(state->statusLabel, text.c_str());
+    InvalidateRect(state->statusLabel, nullptr, TRUE);
+    UpdateWindow(state->statusLabel);
 }
 
 void clearEditControls(const std::vector<HWND>& controls) {
@@ -575,13 +577,16 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lPara
             if (state) {
                 HDC hdcStatic = reinterpret_cast<HDC>(wParam);
                 HWND control = reinterpret_cast<HWND>(lParam);
-                SetBkMode(hdcStatic, TRANSPARENT);
 
                 if (isHeroLabel(state, control)) {
+                    SetBkMode(hdcStatic, TRANSPARENT);
                     SetTextColor(hdcStatic, RGB(244, 248, 252));
                     static HBRUSH hollowBrush = reinterpret_cast<HBRUSH>(GetStockObject(NULL_BRUSH));
                     return reinterpret_cast<INT_PTR>(hollowBrush);
                 }
+
+                SetBkMode(hdcStatic, OPAQUE);
+                SetBkColor(hdcStatic, RGB(255, 255, 255));
 
                 if (control == state->statusLabel) {
                     SetTextColor(hdcStatic, RGB(61, 88, 115));
@@ -589,8 +594,8 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lPara
                     SetTextColor(hdcStatic, RGB(44, 55, 69));
                 }
 
-                static HBRUSH hollowBrush = reinterpret_cast<HBRUSH>(GetStockObject(NULL_BRUSH));
-                return reinterpret_cast<INT_PTR>(hollowBrush);
+                static HBRUSH whiteBrush = CreateSolidBrush(RGB(255, 255, 255));
+                return reinterpret_cast<INT_PTR>(whiteBrush);
             }
             break;
 
