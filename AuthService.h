@@ -1,23 +1,27 @@
 #pragma once
 
+#include "Database.h"
 #include "User.h"
 
 #include <optional>
 #include <string>
-#include <vector>
 
 class AuthService {
 public:
-    explicit AuthService(std::string databasePath);
+    AuthService(std::string databasePath, std::string legacyUsersPath = "users.txt");
 
+    bool IsAvailable() const;
+    const std::string& InitializationError() const;
     std::optional<User> Login(const std::string& username, const std::string& password) const;
-    bool RegisterUser(const User& user, std::string& errorMessage);
+    bool RegisterUser(User& user, std::string& errorMessage);
 
 private:
     bool UsernameExists(const std::string& username) const;
-    void LoadUsers();
-    bool SaveUsers() const;
+    bool InsertUser(User& user, std::string& errorMessage, bool allowExisting);
+    bool CreateProfileForUser(sqlite3_int64 userId, const User& user, std::string& errorMessage) const;
+    void ImportLegacyUsers();
 
-    std::string databasePath_;
-    std::vector<User> users_;
+    Database database_;
+    std::string legacyUsersPath_;
+    std::string initializationError_;
 };

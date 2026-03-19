@@ -1,5 +1,7 @@
 #pragma once
 
+#include "AppConfig.h"
+#include "CaseRepository.h"
 #include "User.h"
 
 #include <windows.h>
@@ -77,7 +79,7 @@ private:
         std::wstring field3Label;
         std::wstring buttonLabel;
         std::wstring successMessage;
-        std::string fileName;
+        std::string storageKey;
         bool showForm = true;
     };
 
@@ -130,4 +132,5 @@ private:
     HWND historyLabel_ = nullptr;
     std::vector<HWND> controls_;
     ActionConfig actionConfig_{};
+    CaseRepository repository_{kDatabasePath};
 };

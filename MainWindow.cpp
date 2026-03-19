@@ -1,5 +1,6 @@
 #include "MainWindow.h"
 
+#include "AppConfig.h"
 #include "StringUtil.h"
 #include "Theme.h"
 #include "Win32Util.h"
@@ -28,7 +29,8 @@ void ShowControls(const std::vector<HWND>& controls, bool visible) {
 }
 }
 
-MainWindow::MainWindow(HINSTANCE instance) : instance_(instance), auth_("users.txt") {}
+MainWindow::MainWindow(HINSTANCE instance)
+    : instance_(instance), auth_(kDatabasePath, kLegacyUsersPath) {}
 
 bool MainWindow::Create() {
     WNDCLASSW wc = {};
@@ -384,6 +386,11 @@ void MainWindow::ResetRegisterForm() {
 }
 
 void MainWindow::HandleLogin() {
+    if (!auth_.IsAvailable()) {
+        SetStatusMessage(ToWide(auth_.InitializationError()), StatusKind::Error);
+        return;
+    }
+
     const std::wstring username = GetWindowTextString(GetDlgItem(hwnd_, ID_EDIT_LOGIN_USERNAME));
     const std::wstring password = GetWindowTextString(GetDlgItem(hwnd_, ID_EDIT_LOGIN_PASSWORD));
 
@@ -403,6 +410,11 @@ void MainWindow::HandleLogin() {
 }
 
 void MainWindow::HandleRegister() {
+    if (!auth_.IsAvailable()) {
+        SetStatusMessage(ToWide(auth_.InitializationError()), StatusKind::Error);
+        return;
+    }
+
     const std::wstring fullName = GetWindowTextString(GetDlgItem(hwnd_, ID_EDIT_REGISTER_FULLNAME));
     const std::wstring username = GetWindowTextString(GetDlgItem(hwnd_, ID_EDIT_REGISTER_USERNAME));
     const std::wstring password = GetWindowTextString(GetDlgItem(hwnd_, ID_EDIT_REGISTER_PASSWORD));
@@ -420,7 +432,11 @@ void MainWindow::HandleRegister() {
         return;
     }
 
-    User user{ToUtf8(fullName), ToUtf8(username), ToUtf8(password), ToUtf8(roleBuffer)};
+    User user{};
+    user.fullName = ToUtf8(fullName);
+    user.username = ToUtf8(username);
+    user.password = ToUtf8(password);
+    user.role = ToUtf8(roleBuffer);
 
     std::string errorMessage;
     if (!auth_.RegisterUser(user, errorMessage)) {

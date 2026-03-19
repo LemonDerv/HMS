@@ -325,7 +325,7 @@ DashboardView::ActionConfig DashboardView::GetActionConfigForRole() const {
                 L"Doctor",
                 L"Save Appointment",
                 L"Appointment request saved.",
-                "patient_appointments.txt",
+                "patient_appointments",
                 true
             };
         }
@@ -338,7 +338,7 @@ DashboardView::ActionConfig DashboardView::GetActionConfigForRole() const {
                 L"Amount",
                 L"Save Payment",
                 L"Bill payment saved.",
-                "patient_bill_payments.txt",
+                "patient_payments",
                 true
             };
         }
@@ -364,7 +364,7 @@ DashboardView::ActionConfig DashboardView::GetActionConfigForRole() const {
                 L"Reason",
                 L"Save Admission",
                 L"Admission saved.",
-                "doctor_admissions.txt",
+                "doctor_admissions",
                 true
             };
         }
@@ -377,7 +377,7 @@ DashboardView::ActionConfig DashboardView::GetActionConfigForRole() const {
                 L"Dosage",
                 L"Save Prescription",
                 L"Prescription saved.",
-                "doctor_prescriptions.txt",
+                "doctor_prescriptions",
                 true
             };
         }
@@ -389,7 +389,7 @@ DashboardView::ActionConfig DashboardView::GetActionConfigForRole() const {
             L"Note",
             L"Save Record Note",
             L"Record note saved.",
-            "doctor_record_notes.txt",
+            "doctor_records",
             true
         };
     }
@@ -403,7 +403,7 @@ DashboardView::ActionConfig DashboardView::GetActionConfigForRole() const {
                 L"Quantity",
                 L"Save Dispensing",
                 L"Dispensing record saved.",
-                "pharmacist_dispensing.txt",
+                "pharmacist_dispensing",
                 true
             };
         }
@@ -416,7 +416,7 @@ DashboardView::ActionConfig DashboardView::GetActionConfigForRole() const {
                 L"Batch note",
                 L"Save Stock Update",
                 L"Stock update saved.",
-                "pharmacist_stock_updates.txt",
+                "pharmacist_stock",
                 true
             };
         }
@@ -428,7 +428,7 @@ DashboardView::ActionConfig DashboardView::GetActionConfigForRole() const {
             L"Status",
             L"Save Review",
             L"Patient review saved.",
-            "pharmacist_patient_reviews.txt",
+            "pharmacist_reviews",
             true
         };
     }
@@ -442,7 +442,7 @@ DashboardView::ActionConfig DashboardView::GetActionConfigForRole() const {
                 L"Amount",
                 L"Save Bill",
                 L"Billing record saved.",
-                "secretary_billing.txt",
+                "secretary_billing",
                 true
             };
         }
@@ -455,7 +455,7 @@ DashboardView::ActionConfig DashboardView::GetActionConfigForRole() const {
                 L"Operating room",
                 L"Save Surgery",
                 L"Surgery schedule saved.",
-                "secretary_surgeries.txt",
+                "secretary_surgeries",
                 true
             };
         }
@@ -467,7 +467,7 @@ DashboardView::ActionConfig DashboardView::GetActionConfigForRole() const {
             L"Note",
             L"Save Patient Task",
             L"Patient support task saved.",
-            "secretary_patient_tasks.txt",
+            "secretary_patient_tasks",
             true
         };
     }
@@ -481,7 +481,7 @@ DashboardView::ActionConfig DashboardView::GetActionConfigForRole() const {
                 L"Location",
                 L"Save Inventory",
                 L"Inventory update saved.",
-                "inventory_stock_status.txt",
+                "inventory_status",
                 true
             };
         }
@@ -494,7 +494,7 @@ DashboardView::ActionConfig DashboardView::GetActionConfigForRole() const {
                 L"Supplier",
                 L"Save Order",
                 L"Restock order saved.",
-                "inventory_orders.txt",
+                "inventory_orders",
                 true
             };
         }
@@ -506,7 +506,7 @@ DashboardView::ActionConfig DashboardView::GetActionConfigForRole() const {
             L"Note",
             L"Save Alert",
             L"Inventory alert saved.",
-            "inventory_alerts.txt",
+            "inventory_alerts",
             true
         };
     }
@@ -520,7 +520,7 @@ DashboardView::ActionConfig DashboardView::GetActionConfigForRole() const {
                 L"Department",
                 L"Save Shift",
                 L"Shift saved.",
-                "hr_shifts.txt",
+                "hr_shifts",
                 true
             };
         }
@@ -533,7 +533,7 @@ DashboardView::ActionConfig DashboardView::GetActionConfigForRole() const {
                 L"Department",
                 L"Save Staff Update",
                 L"Staff update saved.",
-                "hr_staff_updates.txt",
+                "hr_staff_updates",
                 true
             };
         }
@@ -545,7 +545,7 @@ DashboardView::ActionConfig DashboardView::GetActionConfigForRole() const {
             L"Issue",
             L"Save Conflict",
             L"Conflict saved.",
-            "hr_conflicts.txt",
+            "hr_conflicts",
             true
         };
     }
@@ -558,7 +558,7 @@ DashboardView::ActionConfig DashboardView::GetActionConfigForRole() const {
         L"Field 3",
         L"Save",
         L"Record saved.",
-        "dashboard_actions.txt",
+        "dashboard_actions",
         true
     };
 }
@@ -588,16 +588,21 @@ bool DashboardView::SaveAction() {
         return true;
     }
 
-    std::ofstream output(actionConfig_.fileName, std::ios::app);
-    if (!output.is_open()) {
-        SetActionStatus(L"Unable to save this record.");
+    std::string errorMessage;
+    if (!repository_.SaveAction(
+            actionConfig_.storageKey,
+            currentUser_,
+            ToUtf8(field1),
+            ToUtf8(field2),
+            ToUtf8(field3),
+            errorMessage)) {
+        SetActionStatus(ToWide(errorMessage));
         return true;
     }
 
-    output << BuildRecordLine(field1, field2, field3) << '\n';
     ClearActionInputs();
     SetActionStatus(actionConfig_.successMessage);
-    if (currentUser_.role == "Patient" && patientSection_ == PatientSection::History) {
+    if (currentUser_.role == "Patient") {
         UpdatePatientHistory();
     }
     return true;
@@ -682,7 +687,12 @@ void DashboardView::SetHrSection(HrSection section) {
 }
 
 std::vector<std::wstring> DashboardView::LoadRecentPatientHistory() const {
-    std::vector<std::wstring> history;
+    std::vector<std::wstring> history = repository_.LoadRecentPatientHistory(currentUser_);
+    if (!history.empty()) {
+        return history;
+    }
+
+    history.clear();
 
     const auto readFile = [&](const std::string& fileName, const std::wstring& prefix) {
         std::ifstream input(fileName);
