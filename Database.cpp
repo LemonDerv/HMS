@@ -310,7 +310,6 @@ CREATE INDEX IF NOT EXISTS idx_admissions_patient_user ON admissions(patient_use
 CREATE INDEX IF NOT EXISTS idx_inventory_orders_item_name ON inventory_orders(item_name);
 CREATE INDEX IF NOT EXISTS idx_pharmacy_reviews_patient_user ON pharmacy_patient_reviews(patient_user_id);
 CREATE INDEX IF NOT EXISTS idx_medical_record_locks_patient ON medical_record_locks(patient_user_id);
-CREATE INDEX IF NOT EXISTS idx_surgeries_room_time ON surgeries(operating_room, surgery_date, surgery_time);
 CREATE INDEX IF NOT EXISTS idx_hr_shift_swaps_date ON hr_shift_swaps(shift_date);
 )SQL";
 
@@ -423,20 +422,27 @@ bool Database::InitializeSchema(std::string& errorMessage) const {
         return false;
     }
 
-    return EnsureColumn(db_, "hr_shifts", "start_time", "TEXT", errorMessage) &&
-           EnsureColumn(db_, "hr_shifts", "end_time", "TEXT", errorMessage) &&
-           EnsureColumn(db_, "hr_shifts", "override_reason", "TEXT", errorMessage) &&
-           EnsureColumn(db_, "appointments", "reservation_expires_at", "TEXT", errorMessage) &&
-           EnsureColumn(db_, "payments", "authorization_reference", "TEXT", errorMessage) &&
-           EnsureColumn(db_, "inventory_orders", "alternative_item_name", "TEXT", errorMessage) &&
-           EnsureColumn(db_, "inventory_orders", "justification", "TEXT", errorMessage) &&
-           EnsureColumn(db_, "surgeries", "surgery_time", "TEXT", errorMessage) &&
-           EnsureColumn(db_, "surgeries", "duration_minutes", "INTEGER NOT NULL DEFAULT 120", errorMessage) &&
-           EnsureColumn(db_, "surgeries", "doctor_category", "TEXT", errorMessage) &&
-           EnsureColumn(db_, "surgeries", "surgeon_user_id", "INTEGER", errorMessage) &&
-           EnsureColumn(db_, "surgeries", "surgeon_name", "TEXT", errorMessage) &&
-           EnsureColumn(db_, "surgeries", "nurse_name", "TEXT", errorMessage) &&
-           EnsureColumn(db_, "surgeries", "rejection_reason", "TEXT", errorMessage);
+    if (!(EnsureColumn(db_, "hr_shifts", "start_time", "TEXT", errorMessage) &&
+          EnsureColumn(db_, "hr_shifts", "end_time", "TEXT", errorMessage) &&
+          EnsureColumn(db_, "hr_shifts", "override_reason", "TEXT", errorMessage) &&
+          EnsureColumn(db_, "appointments", "reservation_expires_at", "TEXT", errorMessage) &&
+          EnsureColumn(db_, "payments", "authorization_reference", "TEXT", errorMessage) &&
+          EnsureColumn(db_, "inventory_orders", "alternative_item_name", "TEXT", errorMessage) &&
+          EnsureColumn(db_, "inventory_orders", "justification", "TEXT", errorMessage) &&
+          EnsureColumn(db_, "surgeries", "surgery_time", "TEXT", errorMessage) &&
+          EnsureColumn(db_, "surgeries", "duration_minutes", "INTEGER NOT NULL DEFAULT 120", errorMessage) &&
+          EnsureColumn(db_, "surgeries", "doctor_category", "TEXT", errorMessage) &&
+          EnsureColumn(db_, "surgeries", "surgeon_user_id", "INTEGER", errorMessage) &&
+          EnsureColumn(db_, "surgeries", "surgeon_name", "TEXT", errorMessage) &&
+          EnsureColumn(db_, "surgeries", "nurse_name", "TEXT", errorMessage) &&
+          EnsureColumn(db_, "surgeries", "rejection_reason", "TEXT", errorMessage))) {
+        return false;
+    }
+
+    return Execute(
+        "CREATE INDEX IF NOT EXISTS idx_surgeries_room_time "
+        "ON surgeries(operating_room, surgery_date, surgery_time);",
+        errorMessage);
 }
 
 sqlite3* Database::Handle() const {
