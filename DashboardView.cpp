@@ -10,6 +10,9 @@
 
 namespace {
 constexpr int ID_BTN_DASHBOARD_ACTION = 2001;
+constexpr int ID_BTN_CARD1 = 2002;
+constexpr int ID_BTN_CARD2 = 2003;
+constexpr int ID_BTN_CARD3 = 2004;
 constexpr int ID_EDIT_DASH_FIELD1 = 2101;
 constexpr int ID_EDIT_DASH_FIELD2 = 2102;
 constexpr int ID_EDIT_DASH_FIELD3 = 2103;
@@ -57,10 +60,19 @@ void DashboardView::Initialize(HWND parent, const DashboardFonts& fonts, HINSTAN
 
 void DashboardView::SetUser(const User& user) {
     currentUser_ = user;
+    patientSection_ = PatientSection::Appointments;
+    doctorSection_ = DoctorSection::Admissions;
+    pharmacistSection_ = PharmacistSection::Dispensing;
+    secretarySection_ = SecretarySection::Billing;
+    inventorySection_ = InventorySection::Inventory;
+    hrSection_ = HrSection::Shifts;
+    SetWindowTextW(historyLabel_, L"");
     UpdateContent();
     UpdateActionConfig();
     ClearActionInputs();
     SetActionStatus(L"");
+    InvalidateRect(parent_, nullptr, TRUE);
+    UpdateWindow(parent_);
 }
 
 void DashboardView::Show(bool visible) {
@@ -72,11 +84,110 @@ bool DashboardView::IsOwnedControl(HWND hwnd) const {
 }
 
 bool DashboardView::HandleCommand(WPARAM wParam, LPARAM) {
-    if (LOWORD(wParam) == ID_BTN_DASHBOARD_ACTION) {
-        return SaveAction();
+    switch (LOWORD(wParam)) {
+        case ID_BTN_DASHBOARD_ACTION:
+            return SaveAction();
+        case ID_BTN_CARD1:
+            if (currentUser_.role == "Patient") {
+                SetPatientSection(PatientSection::Appointments);
+            } else if (currentUser_.role == "Doctor") {
+                SetDoctorSection(DoctorSection::Admissions);
+            } else if (currentUser_.role == "Pharmacist") {
+                SetPharmacistSection(PharmacistSection::Dispensing);
+            } else if (currentUser_.role == "Secretary") {
+                SetSecretarySection(SecretarySection::Billing);
+            } else if (currentUser_.role == "Inventory Manager") {
+                SetInventorySection(InventorySection::Inventory);
+            } else if (currentUser_.role == "HR Manager") {
+                SetHrSection(HrSection::Shifts);
+            } else {
+                return false;
+            }
+            return true;
+        case ID_BTN_CARD2:
+            if (currentUser_.role == "Patient") {
+                SetPatientSection(PatientSection::Bills);
+            } else if (currentUser_.role == "Doctor") {
+                SetDoctorSection(DoctorSection::Prescriptions);
+            } else if (currentUser_.role == "Pharmacist") {
+                SetPharmacistSection(PharmacistSection::Stock);
+            } else if (currentUser_.role == "Secretary") {
+                SetSecretarySection(SecretarySection::Surgery);
+            } else if (currentUser_.role == "Inventory Manager") {
+                SetInventorySection(InventorySection::Orders);
+            } else if (currentUser_.role == "HR Manager") {
+                SetHrSection(HrSection::Staff);
+            } else {
+                return false;
+            }
+            return true;
+        case ID_BTN_CARD3:
+            if (currentUser_.role == "Patient") {
+                SetPatientSection(PatientSection::History);
+            } else if (currentUser_.role == "Doctor") {
+                SetDoctorSection(DoctorSection::Records);
+            } else if (currentUser_.role == "Pharmacist") {
+                SetPharmacistSection(PharmacistSection::Patients);
+            } else if (currentUser_.role == "Secretary") {
+                SetSecretarySection(SecretarySection::Patients);
+            } else if (currentUser_.role == "Inventory Manager") {
+                SetInventorySection(InventorySection::Alerts);
+            } else if (currentUser_.role == "HR Manager") {
+                SetHrSection(HrSection::Conflicts);
+            } else {
+                return false;
+            }
+            return true;
     }
 
     return false;
+}
+
+bool DashboardView::IsDashboardButtonId(UINT controlId) const {
+    return controlId == ID_BTN_DASHBOARD_ACTION ||
+           controlId == ID_BTN_CARD1 ||
+           controlId == ID_BTN_CARD2 ||
+           controlId == ID_BTN_CARD3;
+}
+
+bool DashboardView::IsActiveDashboardButton(UINT controlId) const {
+    if (currentUser_.role == "Doctor") {
+        return (controlId == ID_BTN_CARD1 && doctorSection_ == DoctorSection::Admissions) ||
+               (controlId == ID_BTN_CARD2 && doctorSection_ == DoctorSection::Prescriptions) ||
+               (controlId == ID_BTN_CARD3 && doctorSection_ == DoctorSection::Records);
+    }
+
+    if (currentUser_.role == "Pharmacist") {
+        return (controlId == ID_BTN_CARD1 && pharmacistSection_ == PharmacistSection::Dispensing) ||
+               (controlId == ID_BTN_CARD2 && pharmacistSection_ == PharmacistSection::Stock) ||
+               (controlId == ID_BTN_CARD3 && pharmacistSection_ == PharmacistSection::Patients);
+    }
+
+    if (currentUser_.role == "Secretary") {
+        return (controlId == ID_BTN_CARD1 && secretarySection_ == SecretarySection::Billing) ||
+               (controlId == ID_BTN_CARD2 && secretarySection_ == SecretarySection::Surgery) ||
+               (controlId == ID_BTN_CARD3 && secretarySection_ == SecretarySection::Patients);
+    }
+
+    if (currentUser_.role == "Inventory Manager") {
+        return (controlId == ID_BTN_CARD1 && inventorySection_ == InventorySection::Inventory) ||
+               (controlId == ID_BTN_CARD2 && inventorySection_ == InventorySection::Orders) ||
+               (controlId == ID_BTN_CARD3 && inventorySection_ == InventorySection::Alerts);
+    }
+
+    if (currentUser_.role == "HR Manager") {
+        return (controlId == ID_BTN_CARD1 && hrSection_ == HrSection::Shifts) ||
+               (controlId == ID_BTN_CARD2 && hrSection_ == HrSection::Staff) ||
+               (controlId == ID_BTN_CARD3 && hrSection_ == HrSection::Conflicts);
+    }
+
+    if (currentUser_.role != "Patient") {
+        return false;
+    }
+
+    return (controlId == ID_BTN_CARD1 && patientSection_ == PatientSection::Appointments) ||
+           (controlId == ID_BTN_CARD2 && patientSection_ == PatientSection::Bills) ||
+           (controlId == ID_BTN_CARD3 && patientSection_ == PatientSection::History);
 }
 
 void DashboardView::CreateControls(HWND parent, HINSTANCE instance) {
@@ -84,25 +195,26 @@ void DashboardView::CreateControls(HWND parent, HINSTANCE instance) {
     roleLabel_ = CreateLabel(parent, L"", 318, 98, 520, 26, fonts_.subtitleFont, instance);
     summaryLabel_ = CreateLabel(parent, L"", 318, 136, 520, 60, fonts_.bodyFont, instance);
 
-    card1Label_ = CreateLabel(parent, L"", 318, 270, 152, 98, fonts_.smallFont, instance);
-    card2Label_ = CreateLabel(parent, L"", 493, 270, 152, 98, fonts_.smallFont, instance);
-    card3Label_ = CreateLabel(parent, L"", 668, 270, 152, 98, fonts_.smallFont, instance);
-    actionSectionLabel_ = CreateLabel(parent, L"", 318, 420, 300, 28, fonts_.subtitleFont, instance);
-    actionDescriptionLabel_ = CreateLabel(parent, L"", 318, 454, 500, 40, fonts_.bodyFont, instance);
-    field1Label_ = CreateLabel(parent, L"", 318, 506, 140, 22, fonts_.smallFont, instance);
-    field2Label_ = CreateLabel(parent, L"", 498, 506, 140, 22, fonts_.smallFont, instance);
-    field3Label_ = CreateLabel(parent, L"", 678, 506, 140, 22, fonts_.smallFont, instance);
-    field1Edit_ = CreateEdit(parent, ID_EDIT_DASH_FIELD1, 318, 532, 150, 32, fonts_.smallFont, instance);
-    field2Edit_ = CreateEdit(parent, ID_EDIT_DASH_FIELD2, 498, 532, 150, 32, fonts_.smallFont, instance);
-    field3Edit_ = CreateEdit(parent, ID_EDIT_DASH_FIELD3, 678, 532, 150, 32, fonts_.smallFont, instance);
-    actionButton_ = CreateButton(parent, L"", ID_BTN_DASHBOARD_ACTION, 318, 588, 210, 40, fonts_.bodyFont, instance);
-    actionStatusLabel_ = CreateLabel(parent, L"", 548, 596, 280, 24, fonts_.smallFont, instance);
+    card1Button_ = CreateButton(parent, L"", ID_BTN_CARD1, 318, 252, 160, 122, fonts_.smallFont, instance);
+    card2Button_ = CreateButton(parent, L"", ID_BTN_CARD2, 493, 252, 160, 122, fonts_.smallFont, instance);
+    card3Button_ = CreateButton(parent, L"", ID_BTN_CARD3, 668, 252, 160, 122, fonts_.smallFont, instance);
+    actionSectionLabel_ = CreateLabel(parent, L"", 318, 406, 300, 28, fonts_.subtitleFont, instance);
+    actionDescriptionLabel_ = CreateLabel(parent, L"", 318, 438, 500, 36, fonts_.bodyFont, instance);
+    field1Label_ = CreateLabel(parent, L"", 318, 484, 140, 22, fonts_.smallFont, instance);
+    field2Label_ = CreateLabel(parent, L"", 498, 484, 140, 22, fonts_.smallFont, instance);
+    field3Label_ = CreateLabel(parent, L"", 678, 484, 140, 22, fonts_.smallFont, instance);
+    field1Edit_ = CreateEdit(parent, ID_EDIT_DASH_FIELD1, 318, 508, 150, 32, fonts_.smallFont, instance);
+    field2Edit_ = CreateEdit(parent, ID_EDIT_DASH_FIELD2, 498, 508, 150, 32, fonts_.smallFont, instance);
+    field3Edit_ = CreateEdit(parent, ID_EDIT_DASH_FIELD3, 678, 508, 150, 32, fonts_.smallFont, instance);
+    actionButton_ = CreateButton(parent, L"", ID_BTN_DASHBOARD_ACTION, 318, 552, 210, 40, fonts_.bodyFont, instance);
+    actionStatusLabel_ = CreateLabel(parent, L"", 548, 560, 280, 24, fonts_.smallFont, instance);
+    historyLabel_ = CreateLabel(parent, L"", 318, 486, 510, 110, fonts_.smallFont, instance);
 
     controls_ = {
         welcomeLabel_, roleLabel_, summaryLabel_,
-        card1Label_, card2Label_, card3Label_, actionSectionLabel_, actionDescriptionLabel_,
+        card1Button_, card2Button_, card3Button_, actionSectionLabel_, actionDescriptionLabel_,
         field1Label_, field2Label_, field3Label_, field1Edit_, field2Edit_, field3Edit_,
-        actionButton_, actionStatusLabel_
+        actionButton_, actionStatusLabel_, historyLabel_
     };
 }
 
@@ -113,7 +225,7 @@ void DashboardView::ShowControls(bool visible) const {
 }
 
 void DashboardView::UpdateCardLabel(HWND label, const Card& card) const {
-    const std::wstring text = card.title + L"\n" + card.description;
+    const std::wstring text = card.title + L"\n\n" + card.description;
     SetWindowTextW(label, text.c_str());
 }
 
@@ -159,9 +271,9 @@ void DashboardView::UpdateContent() {
     }
 
     SetWindowTextW(summaryLabel_, summary.c_str());
-    UpdateCardLabel(card1Label_, card1);
-    UpdateCardLabel(card2Label_, card2);
-    UpdateCardLabel(card3Label_, card3);
+    UpdateCardLabel(card1Button_, card1);
+    UpdateCardLabel(card2Button_, card2);
+    UpdateCardLabel(card3Button_, card3);
 }
 
 void DashboardView::UpdateActionConfig() {
@@ -172,6 +284,22 @@ void DashboardView::UpdateActionConfig() {
     SetWindowTextW(field2Label_, actionConfig_.field2Label.c_str());
     SetWindowTextW(field3Label_, actionConfig_.field3Label.c_str());
     SetWindowTextW(actionButton_, actionConfig_.buttonLabel.c_str());
+
+    const int formCommand = actionConfig_.showForm ? SW_SHOW : SW_HIDE;
+    ShowWindow(field1Label_, formCommand);
+    ShowWindow(field2Label_, formCommand);
+    ShowWindow(field3Label_, formCommand);
+    ShowWindow(field1Edit_, formCommand);
+    ShowWindow(field2Edit_, formCommand);
+    ShowWindow(field3Edit_, formCommand);
+    ShowWindow(actionButton_, formCommand);
+    ShowWindow(historyLabel_, actionConfig_.showForm ? SW_HIDE : SW_SHOW);
+
+    if (!actionConfig_.showForm) {
+        UpdatePatientHistory();
+    }
+
+    InvalidateRect(parent_, nullptr, TRUE);
 }
 
 void DashboardView::ClearActionInputs() {
@@ -188,75 +316,237 @@ void DashboardView::SetActionStatus(const std::wstring& text) {
 
 DashboardView::ActionConfig DashboardView::GetActionConfigForRole() const {
     if (currentUser_.role == "Patient") {
+        if (patientSection_ == PatientSection::Appointments) {
+            return {
+                L"Book an appointment",
+                L"Create a patient appointment request and save it locally.",
+                L"Date",
+                L"Specialty",
+                L"Doctor",
+                L"Save Appointment",
+                L"Appointment request saved.",
+                "patient_appointments.txt",
+                true
+            };
+        }
+        if (patientSection_ == PatientSection::Bills) {
+            return {
+                L"Pay a bill",
+                L"Record a bill payment for the patient account.",
+                L"Bill ID",
+                L"Method",
+                L"Amount",
+                L"Save Payment",
+                L"Bill payment saved.",
+                "patient_bill_payments.txt",
+                true
+            };
+        }
         return {
-            L"Book an appointment",
-            L"Create a patient appointment request and save it locally.",
-            L"Date",
-            L"Specialty",
-            L"Doctor",
-            L"Save Appointment",
-            L"Appointment request saved.",
-            "patient_appointments.txt"
+            L"Visit history",
+            L"Recent appointment and payment activity for this patient.",
+            L"",
+            L"",
+            L"",
+            L"",
+            L"",
+            "",
+            false
         };
     }
     if (currentUser_.role == "Doctor") {
+        if (doctorSection_ == DoctorSection::Admissions) {
+            return {
+                L"Create an admission",
+                L"Store a patient admission request for the current shift.",
+                L"Patient",
+                L"Clinic",
+                L"Reason",
+                L"Save Admission",
+                L"Admission saved.",
+                "doctor_admissions.txt",
+                true
+            };
+        }
+        if (doctorSection_ == DoctorSection::Prescriptions) {
+            return {
+                L"Issue a prescription",
+                L"Capture a medication order for a patient.",
+                L"Patient",
+                L"Medicine",
+                L"Dosage",
+                L"Save Prescription",
+                L"Prescription saved.",
+                "doctor_prescriptions.txt",
+                true
+            };
+        }
         return {
-            L"Issue a prescription",
-            L"Capture a medication order for a patient.",
+            L"Update a medical record",
+            L"Write a concise patient note and save it to the doctor's records.",
             L"Patient",
-            L"Medicine",
-            L"Dosage",
-            L"Save Prescription",
-            L"Prescription saved.",
-            "doctor_prescriptions.txt"
+            L"Record type",
+            L"Note",
+            L"Save Record Note",
+            L"Record note saved.",
+            "doctor_record_notes.txt",
+            true
         };
     }
     if (currentUser_.role == "Pharmacist") {
+        if (pharmacistSection_ == PharmacistSection::Dispensing) {
+            return {
+                L"Record medicine dispensing",
+                L"Track a medication handoff for the pharmacy queue.",
+                L"Patient",
+                L"Medicine",
+                L"Quantity",
+                L"Save Dispensing",
+                L"Dispensing record saved.",
+                "pharmacist_dispensing.txt",
+                true
+            };
+        }
+        if (pharmacistSection_ == PharmacistSection::Stock) {
+            return {
+                L"Update medicine stock",
+                L"Store a pharmacy stock check or restock update.",
+                L"Medicine",
+                L"Available qty",
+                L"Batch note",
+                L"Save Stock Update",
+                L"Stock update saved.",
+                "pharmacist_stock_updates.txt",
+                true
+            };
+        }
         return {
-            L"Record medicine dispensing",
-            L"Track a medication handoff for the pharmacy queue.",
+            L"Review patient treatment",
+            L"Record a patient medication review or pharmacy follow-up.",
             L"Patient",
-            L"Medicine",
-            L"Quantity",
-            L"Save Dispensing",
-            L"Dispensing record saved.",
-            "pharmacist_dispensing.txt"
+            L"Prescription ID",
+            L"Status",
+            L"Save Review",
+            L"Patient review saved.",
+            "pharmacist_patient_reviews.txt",
+            true
         };
     }
     if (currentUser_.role == "Secretary") {
+        if (secretarySection_ == SecretarySection::Billing) {
+            return {
+                L"Issue a patient bill",
+                L"Create and store a billing record for a patient visit.",
+                L"Patient",
+                L"Service",
+                L"Amount",
+                L"Save Bill",
+                L"Billing record saved.",
+                "secretary_billing.txt",
+                true
+            };
+        }
+        if (secretarySection_ == SecretarySection::Surgery) {
+            return {
+                L"Schedule a surgery",
+                L"Store a surgery scheduling request for the secretary team.",
+                L"Patient",
+                L"Date",
+                L"Operating room",
+                L"Save Surgery",
+                L"Surgery schedule saved.",
+                "secretary_surgeries.txt",
+                true
+            };
+        }
         return {
-            L"Issue a patient bill",
-            L"Create and store a billing record for a patient visit.",
+            L"Register a patient support task",
+            L"Track a patient-facing front-desk task or coordination note.",
             L"Patient",
-            L"Service",
-            L"Amount",
-            L"Save Bill",
-            L"Billing record saved.",
-            "secretary_billing.txt"
+            L"Task type",
+            L"Note",
+            L"Save Patient Task",
+            L"Patient support task saved.",
+            "secretary_patient_tasks.txt",
+            true
         };
     }
     if (currentUser_.role == "Inventory Manager") {
+        if (inventorySection_ == InventorySection::Inventory) {
+            return {
+                L"Update inventory status",
+                L"Store a medicine or equipment stock snapshot.",
+                L"Item",
+                L"Available qty",
+                L"Location",
+                L"Save Inventory",
+                L"Inventory update saved.",
+                "inventory_stock_status.txt",
+                true
+            };
+        }
+        if (inventorySection_ == InventorySection::Orders) {
+            return {
+                L"Place a restock order",
+                L"Create a supply request for medicine or equipment.",
+                L"Item",
+                L"Quantity",
+                L"Supplier",
+                L"Save Order",
+                L"Restock order saved.",
+                "inventory_orders.txt",
+                true
+            };
+        }
         return {
-            L"Place a restock order",
-            L"Create a supply request for medicine or equipment.",
+            L"Log a stock alert",
+            L"Record a low-stock or unavailable item alert.",
             L"Item",
-            L"Quantity",
-            L"Supplier",
-            L"Save Order",
-            L"Restock order saved.",
-            "inventory_orders.txt"
+            L"Alert level",
+            L"Note",
+            L"Save Alert",
+            L"Inventory alert saved.",
+            "inventory_alerts.txt",
+            true
         };
     }
     if (currentUser_.role == "HR Manager") {
+        if (hrSection_ == HrSection::Shifts) {
+            return {
+                L"Schedule a shift",
+                L"Create a staffing assignment and store it locally.",
+                L"Employee",
+                L"Shift date",
+                L"Department",
+                L"Save Shift",
+                L"Shift saved.",
+                "hr_shifts.txt",
+                true
+            };
+        }
+        if (hrSection_ == HrSection::Staff) {
+            return {
+                L"Update staff assignment",
+                L"Store a staff role or department update.",
+                L"Employee",
+                L"Role",
+                L"Department",
+                L"Save Staff Update",
+                L"Staff update saved.",
+                "hr_staff_updates.txt",
+                true
+            };
+        }
         return {
-            L"Schedule a shift",
-            L"Create a staffing assignment and store it locally.",
+            L"Log a schedule conflict",
+            L"Record a staffing or leave conflict for review.",
             L"Employee",
-            L"Shift date",
-            L"Department",
-            L"Save Shift",
-            L"Shift saved.",
-            "hr_shifts.txt"
+            L"Conflict date",
+            L"Issue",
+            L"Save Conflict",
+            L"Conflict saved.",
+            "hr_conflicts.txt",
+            true
         };
     }
 
@@ -268,7 +558,8 @@ DashboardView::ActionConfig DashboardView::GetActionConfigForRole() const {
         L"Field 3",
         L"Save",
         L"Record saved.",
-        "dashboard_actions.txt"
+        "dashboard_actions.txt",
+        true
     };
 }
 
@@ -283,6 +574,11 @@ std::string DashboardView::BuildRecordLine(const std::wstring& field1, const std
 }
 
 bool DashboardView::SaveAction() {
+    if (!actionConfig_.showForm) {
+        UpdatePatientHistory();
+        return true;
+    }
+
     const std::wstring field1 = GetWindowTextString(field1Edit_);
     const std::wstring field2 = GetWindowTextString(field2Edit_);
     const std::wstring field3 = GetWindowTextString(field3Edit_);
@@ -301,7 +597,150 @@ bool DashboardView::SaveAction() {
     output << BuildRecordLine(field1, field2, field3) << '\n';
     ClearActionInputs();
     SetActionStatus(actionConfig_.successMessage);
+    if (currentUser_.role == "Patient" && patientSection_ == PatientSection::History) {
+        UpdatePatientHistory();
+    }
     return true;
+}
+
+void DashboardView::SetPatientSection(PatientSection section) {
+    if (currentUser_.role != "Patient") {
+        return;
+    }
+
+    patientSection_ = section;
+    UpdateActionConfig();
+    ClearActionInputs();
+    SetActionStatus(L"");
+    InvalidateRect(parent_, nullptr, TRUE);
+    UpdateWindow(parent_);
+}
+
+void DashboardView::SetDoctorSection(DoctorSection section) {
+    if (currentUser_.role != "Doctor") {
+        return;
+    }
+
+    doctorSection_ = section;
+    UpdateActionConfig();
+    ClearActionInputs();
+    SetActionStatus(L"");
+    InvalidateRect(parent_, nullptr, TRUE);
+    UpdateWindow(parent_);
+}
+
+void DashboardView::SetPharmacistSection(PharmacistSection section) {
+    if (currentUser_.role != "Pharmacist") {
+        return;
+    }
+
+    pharmacistSection_ = section;
+    UpdateActionConfig();
+    ClearActionInputs();
+    SetActionStatus(L"");
+    InvalidateRect(parent_, nullptr, TRUE);
+    UpdateWindow(parent_);
+}
+
+void DashboardView::SetSecretarySection(SecretarySection section) {
+    if (currentUser_.role != "Secretary") {
+        return;
+    }
+
+    secretarySection_ = section;
+    UpdateActionConfig();
+    ClearActionInputs();
+    SetActionStatus(L"");
+    InvalidateRect(parent_, nullptr, TRUE);
+    UpdateWindow(parent_);
+}
+
+void DashboardView::SetInventorySection(InventorySection section) {
+    if (currentUser_.role != "Inventory Manager") {
+        return;
+    }
+
+    inventorySection_ = section;
+    UpdateActionConfig();
+    ClearActionInputs();
+    SetActionStatus(L"");
+    InvalidateRect(parent_, nullptr, TRUE);
+    UpdateWindow(parent_);
+}
+
+void DashboardView::SetHrSection(HrSection section) {
+    if (currentUser_.role != "HR Manager") {
+        return;
+    }
+
+    hrSection_ = section;
+    UpdateActionConfig();
+    ClearActionInputs();
+    SetActionStatus(L"");
+    InvalidateRect(parent_, nullptr, TRUE);
+    UpdateWindow(parent_);
+}
+
+std::vector<std::wstring> DashboardView::LoadRecentPatientHistory() const {
+    std::vector<std::wstring> history;
+
+    const auto readFile = [&](const std::string& fileName, const std::wstring& prefix) {
+        std::ifstream input(fileName);
+        if (!input.is_open()) {
+            return;
+        }
+
+        std::string line;
+        while (std::getline(input, line)) {
+            if (line.empty()) {
+                continue;
+            }
+
+            std::stringstream ss(line);
+            std::string role;
+            std::string username;
+            std::string field1;
+            std::string field2;
+            std::string field3;
+
+            std::getline(ss, role, '|');
+            std::getline(ss, username, '|');
+            std::getline(ss, field1, '|');
+            std::getline(ss, field2, '|');
+            std::getline(ss, field3, '|');
+
+            if (username == currentUser_.username) {
+                history.push_back(prefix + L": " + ToWide(field1) + L" | " + ToWide(field2) + L" | " + ToWide(field3));
+            }
+        }
+    };
+
+    readFile("patient_appointments.txt", L"Appointment");
+    readFile("patient_bill_payments.txt", L"Payment");
+
+    if (history.size() > 6) {
+        history.erase(history.begin(), history.end() - 6);
+    }
+
+    return history;
+}
+
+void DashboardView::UpdatePatientHistory() {
+    const std::vector<std::wstring> history = LoadRecentPatientHistory();
+    if (history.empty()) {
+        SetWindowTextW(historyLabel_, L"No patient history saved yet.");
+        return;
+    }
+
+    std::wstring combined;
+    for (std::size_t i = 0; i < history.size(); ++i) {
+        if (!combined.empty()) {
+            combined += L"\n";
+        }
+        combined += history[i];
+    }
+
+    SetWindowTextW(historyLabel_, combined.c_str());
 }
 
 void DashboardView::Paint(HDC hdc) const {
@@ -316,25 +755,7 @@ void DashboardView::Paint(HDC hdc) const {
     DeleteObject(cardBrush);
     DeleteObject(cardPen);
 
-    const RECT cards[] = {
-        {318, 252, 478, 374},
-        {493, 252, 653, 374},
-        {668, 252, 828, 374}
-    };
-
-    for (const RECT& card : cards) {
-        HBRUSH tileBrush = CreateSolidBrush(RGB(250, 252, 255));
-        HPEN tilePen = CreatePen(PS_SOLID, 1, Theme::kBorder);
-        HGDIOBJ savedBrush = SelectObject(hdc, tileBrush);
-        HGDIOBJ savedPen = SelectObject(hdc, tilePen);
-        RoundRect(hdc, card.left, card.top, card.right, card.bottom, 22, 22);
-        SelectObject(hdc, savedBrush);
-        SelectObject(hdc, savedPen);
-        DeleteObject(tileBrush);
-        DeleteObject(tilePen);
-    }
-
-    RECT actionCard = {290, 402, 846, 646};
+    RECT actionCard = {290, 390, 846, 622};
     HBRUSH actionBrush = CreateSolidBrush(Theme::kCardBackground);
     HPEN actionPen = CreatePen(PS_SOLID, 1, Theme::kBorder);
     HGDIOBJ oldBrush2 = SelectObject(hdc, actionBrush);

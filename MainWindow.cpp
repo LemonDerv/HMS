@@ -515,6 +515,16 @@ void MainWindow::DrawButton(LPDRAWITEMSTRUCT drawItem) const {
         fill = Theme::kPrimary;
         border = Theme::kPrimary;
         text = RGB(255, 255, 255);
+    } else if (dashboard_.IsDashboardButtonId(controlId)) {
+        fill = RGB(250, 252, 255);
+        border = Theme::kBorder;
+        text = Theme::kBodyText;
+
+        if (dashboard_.IsActiveDashboardButton(controlId)) {
+            fill = RGB(231, 241, 251);
+            border = Theme::kPrimary;
+            text = Theme::kPrimaryDark;
+        }
     } else {
         const bool activeTab =
             (controlId == ID_BTN_TAB_LOGIN && authMode_ == AuthMode::Login && currentPage_ == Page::Auth) ||
@@ -545,7 +555,17 @@ void MainWindow::DrawButton(LPDRAWITEMSTRUCT drawItem) const {
 
     wchar_t buttonText[128] = {};
     GetWindowTextW(drawItem->hwndItem, buttonText, 128);
-    DrawTextW(hdc, buttonText, -1, &rect, DT_CENTER | DT_VCENTER | DT_SINGLELINE);
+    UINT format = DT_CENTER | DT_VCENTER | DT_SINGLELINE;
+    if (dashboard_.IsDashboardButtonId(controlId) && controlId != 2001) {
+        RECT textRect = rect;
+        textRect.left += 12;
+        textRect.top += 10;
+        textRect.right -= 12;
+        textRect.bottom -= 10;
+        DrawTextW(hdc, buttonText, -1, &textRect, DT_LEFT | DT_TOP | DT_WORDBREAK);
+    } else {
+        DrawTextW(hdc, buttonText, -1, &rect, format);
+    }
 
     if ((drawItem->itemState & ODS_FOCUS) == ODS_FOCUS) {
         RECT focusRect = rect;
